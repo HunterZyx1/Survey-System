@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大学生心理健康活动调查问卷</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <style>
+        /* 自定义样式，用于拖拽排序 */
+        .question-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            background-color: white;
+        }
+        .ranking-item {
+            cursor: grab;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .ranking-item:active {
+            cursor: grabbing;
+        }
+        .dragging {
+            opacity: 0.5;
+            background-color: #dbeafe;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-4xl">
+        <!-- 问卷头部 -->
+        <div class="bg-blue-600 text-white p-6 md:p-8 rounded-t-lg shadow-lg text-center">
+            <h1 class="text-2xl md:text-3xl font-bold">{{ title }}</h1>
+        </div>
+
+        <div class="bg-white p-6 md:p-8 rounded-b-lg shadow-lg">
+            <p class="text-gray-700 mb-8 leading-relaxed">{{ introduction }}</p>
+
+            <!-- 问卷内容 -->
+            <form @submit.prevent="submitSurvey">
+                <!-- 遍历问卷的各个部分 -->
+                <div v-for="(section, sectionIndex) in survey.sections" :key="sectionIndex" class="mb-10">
+                    <h2 class="text-xl font-bold text-blue-700 border-l-4 border-blue-700 pl-3 mb-6">{{ section.title }}</h2>
+
+                    <!-- 遍历部分中的问题 -->
+                    <div v-for="(question, qIndex) in section.questions" :key="question.id" class="mb-8">
+                        <p class="font-semibold text-gray-800 mb-3">
+                            {{ question.number }}. {{ question.text }}
+                            <span v-if="question.hint" class="text-sm text-gray-500 font-normal">{{ question.hint }}</span>
+                        </p>
+
+                        <!-- 填空题 -->
+                        <div v-if="question.type === 'text'">
+                            <input type="text" v-model="answers[question.id]" class="w-full md:w-1/2 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <!-- 下拉选择题 -->
+                         <div v-if="question.type === 'select'">
+                            <select v-model="answers[question.id]" class="w-full md:w-1/2 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                <option disabled value="">请选择</option>
+                                <option v-for="option in question.options" :key="option">{{ option }}</option>
+                            </select>
+                        </div>
+
+                        <!-- 单选题 -->
+                        <div v-if="question.type === 'radio'" class="space-y-2">
+                            <div v-for="(option, oIndex) in question.options" :key="oIndex">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="radio" :name="question.id" :value="option" v-model="answers[question.id]" class="form-radio h-5 w-5 text-blue-600">
+                                    <span class="text-gray-700">{{ option }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 多选题 -->
+                        <div v-if="question.type === 'checkbox'" class="space-y-2">
+                            <div v-for="(option, oIndex) in question.options" :key="oIndex">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" :value="option" v-model="answers[question.id]" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                                    <span class="text-gray-700">{{ option }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 排序题 -->
+                        <div v-if="question.type === 'ranking'">
+                             <ul class="border rounded-md bg-gray-50">
+                                <li
+                                    v-for="(item, index) in answers[question.id]"
+                                    :key="item.id"
+                                    class="p-3 border-b ranking-item flex items-center space-x-3"
+                                    :class="{ 'dragging': draggingItem && draggingItem.id === item.id }"
+                                    draggable="true"
+                                    @dragstart="dragStart(index, question.id)"
+                                    @dragover.prevent
+                                    @drop="drop(index, question.id)"
+                                    @dragend="dragEnd"
+                                >
+                                    <span class="text-blue-600 font-bold w-4">{{ index + 1 }}.</span>
+                                    <span>{{ item.text }}</span>
+                                </li>
+                            </ul>
+                            <p class="text-sm text-gray-500 mt-2">提示：拖动选项进行排序，1为最喜欢。</p>
+                        </div>
+
+                        <!-- 文本域题 -->
+                        <div v-if="question.type === 'textarea'">
+                            <textarea v-model="answers[question.id]" rows="4" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="text-center mt-10">
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-3 px-12 rounded-lg hover:bg-blue-700 transition duration-300 shadow-md">
+                        提交
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 提交成功提示 -->
+        <div v-if="showSuccessMessage" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-8 rounded-lg shadow-xl text-center">
+                <h3 class="text-2xl font-bold text-green-600 mb-4">提交成功！</h3>
+                <p class="text-gray-700">感谢您的参与。</p>
+                <button @click="showSuccessMessage = false" class="mt-6 bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700">关闭</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                title: '大学生心理健康活动调查问卷',
+                introduction: '亲爱的同学：您好！我们是校心理健康中心，为更好地了解同学们对心理服务的需求，优化我们的活动与服务，我们诚挚地邀请您参与本次调查。本问卷采用匿名方式，所有信息将严格保密，请您放心填写。感谢您的支持！',
+                survey: {
+                    sections: [
+                        {
+                            title: '第一部分：基本信息',
+                            questions: [
+                                { id: 'q1', number: 1, type: 'select', text: '您的性别：', options: ['男', '女', '其他'] },
+                                { id: 'q2', number: 2, type: 'select', text: '您的学院：', options: ['信息工程学院', '理学院', '文法学院', '马克思主义学院', '经济管理学院', '艺术设计学院', '其他'] },
+                                { id: 'q3', number: 3, type: 'select', text: '您的年级：', options: ['大一', '大二', '大三', '大四', '研究生'] },
+                            ]
+                        },
+                        {
+                            title: '第二部分：活动参与和现状',
+                            questions: [
+                                { id: 'q4', number: 4, type: 'radio', text: '您目前感受到的心理困扰程度是？', options: ['没有困扰', '有轻度困扰，偶尔影响生活', '有中度困扰，有时影响学习和生活', '有较重困扰，经常影响学习和生活', '有严重困扰，难以应对'] },
+                                { id: 'q5', number: 5, type: 'radio', text: '产生困扰情绪时，您觉得情绪低落、焦虑或压力大等心理困扰的频率是？', options: ['几乎每天', '每周一次', '每月一次', '几乎没有'] },
+                                { id: 'q6', number: 6, type: 'checkbox', text: '当遇到上述困扰时，您通常会如何应对？', hint: '【多选题】', options: ['自我调节（运动、睡觉、听音乐）', '与同伴、家人沟通', '向辅导员或专业心理老师求助', '搜索网络信息或使用心理类APP', '借助药物（遵医嘱或自行用药）', '使用AI咨询解惑', '其他'] },
+                                { id: 'q7', number: 7, type: 'checkbox', text: '您是否曾被专业医生（如精神科医师或心理治疗师）诊断过以下心理障碍？', hint: '【多选题】', options: ['焦虑障碍谱系（广泛性焦虑、惊恐发作）', '抑郁障碍谱系（重度抑郁、心境恶劣）', '创伤后应激障碍（PTSD）', '我没有相关诊断，或不确定', '其他心理障碍，请注明：'] },
+                                { id: 'q8', number: 8, type: 'radio', text: '您是否了解我校举办的各类心理健康活动（如讲座、团体辅导、沙龙等）？', options: ['非常了解', '比较了解', '了解一些', '不太了解', '完全不了解'] },
+                                { id: 'q9', number: 9, type: 'radio', text: '您认为我校学生参加心理健康活动的意愿是？', options: ['非常强烈', '比较强烈', '一般', '不强'] },
+                                { id: 'q10', number: 10, type: 'radio', text: '上一学期里，您参加学校心理健康活动的频率是？', options: ['从未参加', '1-2次', '3-5次', '5次以上'] },
+                            ]
+                        },
+                         {
+                            title: '第三部分：需求与偏好',
+                            questions: [
+                                { id: 'q12', number: 12, type: 'checkbox', text: '如果寻求心理支持，您最希望获得哪方面的帮助？', hint: '【请选择最关注的3项】', options: ['情绪管理与压力应对', '学业规划与职业发展', '人际交往与沟通技巧', '自我探索与成长', '恋爱与亲密关系', '个人心理咨询', '心理障碍相关知识（如识别、治疗、康复）', '危机应对与自我关怀', '其他'] },
+                                { id: 'q13', number: 13, type: 'ranking', text: '对于心理健康活动的形式，您的偏好是？（请为以下形式排序：1为最喜欢，4为最不喜欢）', options: [
+                                    {id: 1, text: '知识讲座（线上讲座、线下讲座）'},
+                                    {id: 2, text: '技能训练（如正念训练、沟通训练工作坊）'},
+                                    {id: 3, text: '体验活动（如心理电影、心理游戏、主题沙龙）'},
+                                    {id: 4, text: '同伴支持型（由专业老师带领的小组，成员分享相似经历）'}
+                                ]},
+                                { id: 'q14', number: 14, type: 'checkbox', text: '您希望以下哪些服务形式的专业度更高？', hint: '【多选题】', options: ['线上一对一咨询服务', '线下一对一咨询服务', '线上心理健康科普（如留言、邮件）', '心理测量服务', '使用自助资源（如APP、书籍、线上课程）', '我不确定或以上都不是'] },
+                            ]
+                        },
+                        {
+                            title: '第四部分：改进建议与参与意愿',
+                            questions: [
+                                { id: 'q15', number: 15, type: 'checkbox', text: '您认为要提高心理健康活动的同学参与度，最需要优先改进的三个方面是？', hint: '【请选择3项】', options: ['加强宣传与说明，提前明确活动内容、形式、师资及保密措施', '活动设计更贴近同学们的实际需求、更具趣味性和互动性', '拓展活动形式，如增加同伴支持小组、艺术治疗、校外（社交型）的专题活动', '活动时间地点更方便', '邀请名师或网红心理专家', '我不确定'] },
+                                { id: 'q16', number: 16, type: 'checkbox', text: '请问您不参加或很少参加心理健康活动？', hint: '【多选题】', options: ['活动主题或形式不感兴趣', '担心隐私泄露', '活动术语或内容听不懂', '担心贴标签或被歧视', '没时间，学业或社团活动繁忙', '活动时间地点不方便', '不知道有哪些活动', '其他'] },
+                                { id: 'q17', number: 17, type: 'textarea', text: '您对参加过的心理活动有何印象深刻或有较大收获的是？' },
+                                { id: 'q18', number: 18, type: 'textarea', text: '对于学校心理健康中心的活动与服务，您还有哪些意见或建议？(开放题)' },
+                            ]
+                        }
+                    ]
+                },
+                answers: {}, // 存储所有答案
+                draggingItem: null, // 当前拖拽的元素
+                showSuccessMessage: false,
+            },
+            created() {
+                // 初始化答案对象
+                this.survey.sections.forEach(section => {
+                    section.questions.forEach(q => {
+                        if (q.type === 'checkbox') {
+                            this.$set(this.answers, q.id, []);
+                        } else if (q.type === 'ranking') {
+                             this.$set(this.answers, q.id, [...q.options]); // 复制一份选项作为初始排序
+                        } else {
+                            this.$set(this.answers, q.id, '');
+                        }
+                    });
+                });
+            },
+            methods: {
+                submitSurvey() {
+                    console.log("问卷提交数据: ", JSON.parse(JSON.stringify(this.answers)));
+                    // 这里可以添加将数据发送到服务器的逻辑
+                    // alert('问卷已提交！感谢您的参与！');
+                    this.showSuccessMessage = true;
+                },
+                // --- 拖拽排序方法 ---
+                dragStart(index, questionId) {
+                    this.draggingItem = this.answers[questionId][index];
+                    event.dataTransfer.effectAllowed = 'move';
+                },
+                drop(index, questionId) {
+                    if (!this.draggingItem) return;
+
+                    const fromIndex = this.answers[questionId].indexOf(this.draggingItem);
+                    const toIndex = index;
+
+                    if (fromIndex !== toIndex) {
+                        // 移除拖动的项
+                        const itemToMove = this.answers[questionId].splice(fromIndex, 1)[0];
+                        // 在新位置插入
+                        this.answers[questionId].splice(toIndex, 0, itemToMove);
+                    }
+                    this.draggingItem = null;
+                },
+                dragEnd() {
+                    // 稍微延迟以确保drop事件先完成
+                    setTimeout(() => {
+                        this.draggingItem = null;
+                    }, 50);
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
