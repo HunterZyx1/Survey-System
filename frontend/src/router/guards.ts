@@ -13,7 +13,7 @@ export function setupRouterGuards(router: any) {
     }
     
     // 不需要登录的页面
-    const whiteList = ['/login', '/about']
+    const whiteList = ['/login', '/register', '/about']
     
     // 如果访问的是登录页且已经登录，则重定向到首页
     if (to.path === '/login' && userStore.isAuthenticated) {

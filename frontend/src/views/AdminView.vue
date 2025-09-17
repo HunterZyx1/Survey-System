@@ -592,6 +592,7 @@ const selectedSurvey = ref<Survey>({
 })
 const surveyResponses = ref<SurveyResponse[]>([])
 const activeResponsePanel = ref<number[]>([])
+const totalResponseCount = ref<number>(0)
 
 const surveyForm = reactive<SurveyForm>({
   title: '',
@@ -606,7 +607,7 @@ const editSurveyForm = reactive<SurveyForm>({
 })
 
 const totalResponses = computed(() => {
-  return surveysForResponseView.value.reduce((total, survey) => total + (survey.response_count || 0), 0)
+  return totalResponseCount.value
 })
 
 let currentEditSurveyId = 0
@@ -619,8 +620,34 @@ onMounted(() => {
   } else if (!userStore.isAdmin) {
     ElMessage.error('您没有权限访问此页面')
     router.push('/')
+  } else {
+    // 如果是管理员，加载仪表板数据
+    fetchDashboardData()
   }
 })
+
+const fetchDashboardData = async () => {
+  try {
+    // 获取统计信息
+    const statsResponse = await axios.get('http://localhost:5000/api/survey-stats')
+    // 获取详细的调查列表
+    const surveysResponse = await axios.get('http://localhost:5000/api/surveys')
+    
+    // 更新数据
+    surveys.value = surveysResponse.data
+    publishedSurveys.value = surveys.value.filter(survey => survey.is_published)
+    surveysForResponseView.value = surveysResponse.data
+    
+    // 更新总响应数
+    totalResponseCount.value = statsResponse.data.total_responses
+    
+    // 为了触发响应式更新，我们需要创建一个新的数组引用
+    surveysForResponseView.value = [...surveysResponse.data]
+  } catch (error) {
+    console.error('获取仪表板数据失败:', error)
+    ElMessage.error('获取仪表板数据失败，请重试')
+  }
+}
 
 const addQuestion = () => {
   surveyForm.questions.push({
@@ -715,6 +742,12 @@ const fetchSurveys = async () => {
     const response = await axios.get('http://localhost:5000/api/surveys')
     surveys.value = response.data
     publishedSurveys.value = surveys.value.filter(survey => survey.is_published)
+    // 更新用于响应视图的调查列表
+    surveysForResponseView.value = response.data
+    
+    // 更新总响应数
+    const statsResponse = await axios.get('http://localhost:5000/api/survey-stats')
+    totalResponseCount.value = statsResponse.data.total_responses
   } catch (error) {
     console.error('获取调查列表失败:', error)
     ElMessage.error('获取调查列表失败，请重试')
@@ -726,11 +759,7 @@ const fetchSurveys = async () => {
 const fetchSurveysForResponseView = async () => {
   try {
     const response = await axios.get('http://localhost:5000/api/surveys')
-    // 为每个调查添加响应计数
-    surveysForResponseView.value = response.data.map((survey: Survey) => ({
-      ...survey,
-      response_count: 0 // 简化处理，实际应该从后端获取
-    }))
+    surveysForResponseView.value = response.data
     
     // 如果有调查，选择第一个作为默认选中
     if (surveysForResponseView.value.length > 0 && !selectedSurveyId.value) {

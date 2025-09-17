@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 interface User {
   username: string
-  role: 'user' | 'admin'
+  is_admin: boolean
   token: string
 }
 
@@ -11,8 +11,8 @@ export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
   
   const isAuthenticated = computed(() => !!user.value)
-  const isAdmin = computed(() => user.value?.role === 'admin')
-  const isUser = computed(() => user.value?.role === 'user')
+  const isAdmin = computed(() => user.value?.is_admin || false)
+  const isUser = computed(() => user.value && !user.value.is_admin)
   
   function login(userData: User) {
     user.value = userData

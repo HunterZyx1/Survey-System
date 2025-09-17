@@ -7,45 +7,65 @@
             <h2>用户登录</h2>
           </div>
         </template>
-        
-        <el-form 
-          ref="loginFormRef" 
-          :model="loginForm" 
-          :rules="loginRules" 
-          label-position="top" 
+
+        <el-form
+          ref="loginFormRef"
+          :model="loginForm"
+          :rules="loginRules"
+          label-position="top"
           @submit.prevent="handleLogin"
         >
           <el-form-item label="用户名" prop="username">
-            <el-input 
-              v-model="loginForm.username" 
-              placeholder="请输入用户名" 
+            <el-input
+              v-model="loginForm.username"
+              placeholder="请输入用户名"
               clearable
               size="large"
+              name="login-username"
+              autocomplete="username"
             />
           </el-form-item>
-          
+
           <el-form-item label="密码" prop="password">
-            <el-input 
-              v-model="loginForm.password" 
-              type="password" 
-              placeholder="请输入密码" 
+            <el-input
+              v-model="loginForm.password"
+              type="password"
+              placeholder="请输入密码"
               show-password
               size="large"
+              name="login-password"
+              autocomplete="current-password"
             />
           </el-form-item>
-          
+
           <el-form-item label="角色" prop="role">
-            <el-radio-group v-model="loginForm.role" size="large">
-              <el-radio-button label="user">用户</el-radio-button>
-              <el-radio-button label="admin">管理员</el-radio-button>
-            </el-radio-group>
+            <div class="role-selection">
+              <el-radio-group v-model="loginForm.role" size="large">
+                <el-radio label="user" class="role-option">
+                  <div class="role-item">
+                    <div class="role-icon user-icon">
+                      <i class="el-icon-user"></i>
+                    </div>
+                    <span class="role-text">用户</span>
+                  </div>
+                </el-radio>
+                <el-radio label="admin" class="role-option">
+                  <div class="role-item">
+                    <div class="role-icon admin-icon">
+                      <i class="el-icon-s-custom"></i>
+                    </div>
+                    <span class="role-text">管理员</span>
+                  </div>
+                </el-radio>
+              </el-radio-group>
+            </div>
           </el-form-item>
-          
+
           <el-form-item>
-            <el-button 
-              type="primary" 
-              size="large" 
-              native-type="submit" 
+            <el-button
+              type="primary"
+              size="large"
+              native-type="submit"
               :loading="loading"
               style="width: 100%"
             >
@@ -53,6 +73,10 @@
             </el-button>
           </el-form-item>
         </el-form>
+        
+        <div class="register-link">
+          <p>还没有账户？<el-button type="text" @click="goToRegister">立即注册</el-button></p>
+        </div>
       </el-card>
     </div>
   </div>
@@ -63,6 +87,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import axios from 'axios'
 import type { FormInstance, FormRules } from 'element-plus'
 
 interface LoginForm {
@@ -98,46 +123,52 @@ const loginRules = reactive<FormRules>({
 
 const handleLogin = async () => {
   if (!loginFormRef.value) return
-  
-  await loginFormRef.value.validate((valid) => {
+
+  await loginFormRef.value.validate(async (valid) => {
     if (valid) {
-      // 模拟登录过程
       loading.value = true
-      
-      // 模拟API调用延迟
-      setTimeout(() => {
-        loading.value = false
-        
-        // 简单的模拟验证（实际项目中应该调用后端API）
-        if (loginForm.username === 'admin' && loginForm.password === 'admin123' && loginForm.role === 'admin') {
-          // 管理员登录成功
-          ElMessage.success('管理员登录成功')
-          // 使用Pinia状态管理
-          userStore.login({
-            username: loginForm.username,
-            role: 'admin',
-            token: 'admin-token-' + Date.now()
-          })
-          // 跳转到管理员页面（这里暂时跳转到首页）
-          router.push('/')
-        } else if (loginForm.username === 'user' && loginForm.password === 'user123' && loginForm.role === 'user') {
-          // 用户登录成功
-          ElMessage.success('用户登录成功')
-          // 使用Pinia状态管理
-          userStore.login({
-            username: loginForm.username,
-            role: 'user',
-            token: 'user-token-' + Date.now()
-          })
-          // 跳转到用户页面（这里暂时跳转到调查页面）
-          router.push('/survey')
-        } else {
-          // 登录失败
-          ElMessage.error('用户名或密码错误')
+
+      try {
+        // 准备登录数据
+        const loginData = {
+          username: loginForm.username,
+          password: loginForm.password
         }
-      }, 1000)
+
+        // 调用登录API
+        const response = await axios.post('http://localhost:5000/api/login', loginData)
+        
+        ElMessage.success('登录成功')
+        
+        // 使用Pinia状态管理
+        userStore.login({
+          username: response.data.user.username,
+          is_admin: response.data.user.is_admin,
+          token: response.data.token
+        })
+        
+        // 根据角色跳转到相应页面
+        if (response.data.user.is_admin) {
+          router.push('/admin')
+        } else {
+          router.push('/survey')
+        }
+      } catch (error) {
+        console.error('登录失败:', error)
+        if (error.response && error.response.data && error.response.data.message) {
+          ElMessage.error(error.response.data.message)
+        } else {
+          ElMessage.error('登录失败，请重试')
+        }
+      } finally {
+        loading.value = false
+      }
     }
   })
+}
+
+const goToRegister = () => {
+  router.push('/register')
 }
 </script>
 
@@ -178,5 +209,87 @@ const handleLogin = async () => {
 :deep(.el-form-item__label) {
   font-weight: 500;
   color: #555;
+}
+
+.role-selection {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.role-option {
+  margin: 0 15px;
+}
+
+.role-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.role-icon {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+  border: 2px solid #dcdfe6;
+  transition: all 0.3s ease;
+}
+
+.role-icon i {
+  font-size: 12px;
+}
+
+.user-icon {
+  color: #409eff;
+}
+
+.admin-icon {
+  color: #e6a23c;
+}
+
+.role-text {
+  font-size: 14px;
+  color: #606266;
+}
+
+/* 选中状态样式 */
+:deep(.el-radio__input.is-checked + .el-radio__label .role-icon) {
+  border-color: #409eff;
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+:deep(.el-radio__input.is-checked + .el-radio__label .user-icon) {
+  border-color: #409eff;
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+:deep(.el-radio__input.is-checked + .el-radio__label .admin-icon) {
+  border-color: #e6a23c;
+  background-color: rgba(230, 162, 60, 0.1);
+}
+
+:deep(.el-radio__input.is-checked + .el-radio__label .role-text) {
+  color: #409eff;
+  font-weight: 500;
+}
+
+/* 隐藏默认的radio按钮 */
+:deep(.el-radio__input) {
+  display: none;
+}
+
+.register-link {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.register-link p {
+  margin: 0;
+  color: #666;
 }
 </style>

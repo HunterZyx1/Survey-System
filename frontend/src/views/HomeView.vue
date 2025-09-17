@@ -9,6 +9,10 @@ const router = useRouter()
 const goToLogin = () => {
   router.push('/login')
 }
+
+const goToRegister = () => {
+  router.push('/register')
+}
 </script>
 
 <template>
@@ -27,7 +31,10 @@ const goToLogin = () => {
               <strong>请先登录</strong>
               <p style="margin: 5px 0 0 0;">您需要登录后才能使用调查系统功能</p>
             </div>
-            <el-button type="primary" @click="goToLogin">立即登录</el-button>
+            <div>
+              <el-button type="primary" @click="goToLogin" style="margin-right: 10px;">立即登录</el-button>
+              <el-button @click="goToRegister">注册账户</el-button>
+            </div>
           </div>
         </template>
       </el-alert>
