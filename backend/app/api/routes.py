@@ -1,7 +1,94 @@
 from flask import jsonify, request
 from app.api import api_bp
 from app.extensions import db
-from app.api.models import Survey, Question, Option, SurveyResponse, QuestionResponse
+from app.api.models import User, Survey, Question, Option, SurveyResponse, QuestionResponse
+import jwt
+import datetime
+from functools import wraps
+import os
+
+# 密钥用于JWT token签名
+SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here'
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+        try:
+            # 移除Bearer前缀
+            if token.startswith('Bearer '):
+                token = token[7:]
+            data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+            current_user = User.query.filter_by(id=data['user_id']).first()
+        except:
+            return jsonify({'message': 'Token is invalid'}), 401
+        return f(current_user, *args, **kwargs)
+    return decorated
+
+@api_bp.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+    
+    # 验证输入
+    if not username or not email or not password:
+        return jsonify({'message': 'Username, email, and password are required'}), 400
+    
+    # 检查用户是否已存在
+    if User.query.filter_by(username=username).first():
+        return jsonify({'message': 'Username already exists'}), 400
+    
+    if User.query.filter_by(email=email).first():
+        return jsonify({'message': 'Email already exists'}), 400
+    
+    # 创建新用户
+    user = User(username=username, email=email)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    
+    # 生成token
+    token = jwt.encode({
+        'user_id': user.id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30)
+    }, SECRET_KEY, algorithm='HS256')
+    
+    return jsonify({
+        'message': 'User registered successfully',
+        'token': token,
+        'user': user.to_dict()
+    }), 201
+
+@api_bp.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    # 验证输入
+    if not username or not password:
+        return jsonify({'message': 'Username and password are required'}), 400
+    
+    # 查找用户
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.check_password(password):
+        return jsonify({'message': 'Invalid username or password'}), 401
+    
+    # 生成token
+    token = jwt.encode({
+        'user_id': user.id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30)
+    }, SECRET_KEY, algorithm='HS256')
+    
+    return jsonify({
+        'message': 'Login successful',
+        'token': token,
+        'user': user.to_dict()
+    })
 
 @api_bp.route('/surveys', methods=['GET'])
 def get_surveys():
@@ -11,6 +98,25 @@ def get_surveys():
         survey_data = survey.to_dict()
         result.append(survey_data)
     return jsonify(result)
+
+@api_bp.route('/survey-stats', methods=['GET'])
+def get_survey_stats():
+    total_surveys = Survey.query.count()
+    published_surveys = Survey.query.filter_by(is_published=True).count()
+    
+    # 计算总响应数
+    total_responses = db.session.query(db.func.sum(
+        db.session.query(db.func.count(SurveyResponse.id))
+        .filter(SurveyResponse.survey_id == Survey.id)
+        .correlate(Survey)
+        .as_scalar()
+    )).scalar() or 0
+    
+    return jsonify({
+        'total_surveys': total_surveys,
+        'published_surveys': published_surveys,
+        'total_responses': total_responses
+    })
 
 @api_bp.route('/surveys', methods=['POST'])
 def create_survey():
