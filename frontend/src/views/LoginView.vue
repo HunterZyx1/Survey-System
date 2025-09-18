@@ -153,7 +153,7 @@ const handleLogin = async () => {
         } else {
           router.push('/survey')
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('登录失败:', error)
         if (error.response && error.response.data && error.response.data.message) {
           ElMessage.error(error.response.data.message)

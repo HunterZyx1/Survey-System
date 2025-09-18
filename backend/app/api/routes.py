@@ -90,6 +90,82 @@ def login():
         'user': user.to_dict()
     })
 
+@api_bp.route('/users', methods=['GET'])
+@token_required
+def get_users(current_user):
+    # 只有管理员可以获取所有用户列表
+    if not current_user.is_admin:
+        return jsonify({'message': 'Permission denied'}), 403
+    
+    users = User.query.all()
+    result = []
+    for user in users:
+        result.append(user.to_dict())
+    return jsonify(result)
+
+@api_bp.route('/users/<int:user_id>', methods=['GET'])
+@token_required
+def get_user(current_user, user_id):
+    # 用户只能查看自己的信息，管理员可以查看所有用户信息
+    if current_user.id != user_id and not current_user.is_admin:
+        return jsonify({'message': 'Permission denied'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    return jsonify(user.to_dict())
+
+@api_bp.route('/users/<int:user_id>', methods=['PUT'])
+@token_required
+def update_user(current_user, user_id):
+    # 用户只能更新自己的信息，管理员可以更新所有用户信息
+    if current_user.id != user_id and not current_user.is_admin:
+        return jsonify({'message': 'Permission denied'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    data = request.get_json()
+    
+    # 更新用户信息
+    if 'username' in data:
+        # 检查用户名是否已存在
+        existing_user = User.query.filter_by(username=data['username']).first()
+        if existing_user and existing_user.id != user_id:
+            return jsonify({'message': 'Username already exists'}), 400
+        user.username = data['username']
+    
+    if 'email' in data:
+        # 检查邮箱是否已存在
+        existing_user = User.query.filter_by(email=data['email']).first()
+        if existing_user and existing_user.id != user_id:
+            return jsonify({'message': 'Email already exists'}), 400
+        user.email = data['email']
+    
+    if 'is_admin' in data:
+        # 只有管理员可以更改用户权限
+        if current_user.is_admin:
+            user.is_admin = data['is_admin']
+        else:
+            return jsonify({'message': 'Permission denied'}), 403
+    
+    if 'password' in data:
+        user.set_password(data['password'])
+    
+    db.session.commit()
+    return jsonify(user.to_dict())
+
+@api_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@token_required
+def delete_user(current_user, user_id):
+    # 用户不能删除自己，只有管理员可以删除用户
+    if current_user.id == user_id:
+        return jsonify({'message': 'You cannot delete yourself'}), 400
+    
+    if not current_user.is_admin:
+        return jsonify({'message': 'Permission denied'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'message': 'User deleted successfully'}), 200
+
 @api_bp.route('/surveys', methods=['GET'])
 def get_surveys():
     surveys = Survey.query.all()

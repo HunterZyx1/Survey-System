@@ -159,7 +159,7 @@ const handleRegister = async () => {
           // 注册成功后跳转到登录页面
           router.push('/login')
         })
-        .catch(error => {
+        .catch((error: any) => {
           console.error('注册失败:', error)
           if (error.response && error.response.data && error.response.data.message) {
             ElMessage.error(error.response.data.message)
