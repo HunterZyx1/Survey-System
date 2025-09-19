@@ -489,7 +489,17 @@
                           <template #title>
                             <div class="response-header">
                               <span>响应 #{{ response.id }}</span>
-                              <span class="response-time">{{ formatDate(response.created_at) }}</span>
+                              <div class="response-actions">
+                                <span class="response-time">{{ formatDate(response.created_at) }}</span>
+                                <el-button 
+                                  type="danger" 
+                                  size="small" 
+                                  @click.stop="deleteResponse(response.id)"
+                                  style="margin-left: 10px;"
+                                >
+                                  删除
+                                </el-button>
+                              </div>
                             </div>
                           </template>
                           
@@ -1016,6 +1026,44 @@ const togglePublish = async (survey: Survey) => {
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN')
+}
+
+const deleteResponse = async (responseId: number) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除这个调查响应吗？此操作不可撤销。',
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    // 发送删除请求到后端API
+    await axios.delete(`http://localhost:5000/api/survey-responses/${responseId}`)
+    
+    ElMessage.success('调查响应删除成功')
+    
+    // 从本地数据中移除该响应
+    const index = surveyResponses.value.findIndex(r => r.id === responseId)
+    if (index !== -1) {
+      surveyResponses.value.splice(index, 1)
+    }
+    
+    // 更新调查的响应计数
+    if (selectedSurvey.value) {
+      selectedSurvey.value.response_count = (selectedSurvey.value.response_count || 0) - 1
+    }
+    
+    // 更新仪表板数据
+    await fetchDashboardData()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除调查响应失败:', error)
+      ElMessage.error('删除调查响应失败，请重试')
+    }
+  }
 }
 </script>
 

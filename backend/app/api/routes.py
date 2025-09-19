@@ -378,7 +378,11 @@ def get_survey_responses(survey_id):
                     option = options_dict.get(qr.option_id)
                     # 如果有文本响应，说明是"其他"选项
                     if qr.text_response:
-                        response_info['response'] = f"{option.text}: {qr.text_response}" if option else f"Other: {qr.text_response}"
+                        # 如果选项文本是"其他"，则只显示用户输入的内容
+                        if option and option.text == "其他":
+                            response_info['response'] = qr.text_response
+                        else:
+                            response_info['response'] = f"{option.text}: {qr.text_response}" if option else f"Other: {qr.text_response}"
                     else:
                         response_info['response'] = option.text if option else 'Unknown option'
                     response_info['option_id'] = qr.option_id
@@ -391,6 +395,17 @@ def get_survey_responses(survey_id):
         result.append(response_data)
     
     return jsonify(result)
+
+@api_bp.route('/survey-responses/<int:response_id>', methods=['DELETE'])
+def delete_survey_response(response_id):
+    # Get the survey response
+    survey_response = SurveyResponse.query.get_or_404(response_id)
+    
+    # Delete the survey response (cascade will delete question responses)
+    db.session.delete(survey_response)
+    db.session.commit()
+    
+    return jsonify({'message': 'Survey response deleted successfully'}), 200
 
 @api_bp.route('/submit', methods=['POST'])
 def submit_survey():
@@ -459,12 +474,13 @@ def submit_survey():
                 try:
                     option_id = int(response)
                     # 检查是否是"其他"选项并包含文本
-                    if option_id in other_texts and other_texts[option_id]:
+                    other_text_key = f"{q_id}"
+                    if other_text_key in other_texts and other_texts[other_text_key]:
                         question_response = QuestionResponse(
                             survey_response_id=survey_response.id,
                             question_id=q_id,
                             option_id=option_id,
-                            text_response=other_texts[option_id]  # 保存其他选项文本
+                            text_response=other_texts[other_text_key]  # 保存其他选项文本
                         )
                     else:
                         question_response = QuestionResponse(
