@@ -7,10 +7,8 @@ export function setupRouterGuards(router: any) {
     // 获取用户状态
     const userStore = useUserStore()
     
-    // 如果没有初始化用户状态，则初始化
-    if (userStore.user === null) {
-      userStore.initializeUser()
-    }
+    // 每次路由跳转都重新初始化用户状态，确保检查过期时间
+    userStore.initializeUser()
     
     // 不需要登录的页面
     const whiteList = ['/login', '/register', '/about']

@@ -62,6 +62,10 @@
           </el-form-item>
 
           <el-form-item>
+            <el-checkbox v-model="loginForm.rememberMe" label="记住我 (10天内免登录)" />
+          </el-form-item>
+
+          <el-form-item>
             <el-button
               type="primary"
               size="large"
@@ -94,6 +98,7 @@ interface LoginForm {
   username: string
   password: string
   role: string
+  rememberMe: boolean
 }
 
 const router = useRouter()
@@ -104,7 +109,8 @@ const loading = ref(false)
 const loginForm = reactive<LoginForm>({
   username: '',
   password: '',
-  role: 'user' // 默认为普通用户
+  role: 'user', // 默认为普通用户
+  rememberMe: false // 默认不记住登录状态
 })
 
 const loginRules = reactive<FormRules>({
@@ -145,7 +151,7 @@ const handleLogin = async () => {
           username: response.data.user.username,
           is_admin: response.data.user.is_admin,
           token: response.data.token
-        })
+        }, loginForm.rememberMe) // 传递rememberMe选项
         
         // 根据角色跳转到相应页面
         if (response.data.user.is_admin) {
