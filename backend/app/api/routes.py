@@ -376,7 +376,11 @@ def get_survey_responses(survey_id):
             else:  # Choice question
                 if qr.option_id:
                     option = options_dict.get(qr.option_id)
-                    response_info['response'] = option.text if option else 'Unknown option'
+                    # 如果有文本响应，说明是"其他"选项
+                    if qr.text_response:
+                        response_info['response'] = f"{option.text}: {qr.text_response}" if option else f"Other: {qr.text_response}"
+                    else:
+                        response_info['response'] = option.text if option else 'Unknown option'
                     response_info['option_id'] = qr.option_id
                 else:
                     response_info['response'] = 'No response'
@@ -393,6 +397,7 @@ def submit_survey():
     data = request.get_json()
     survey_id = data.get('survey_id')
     responses = data.get('responses', {})
+    other_texts = data.get('otherTexts', {})  # 获取其他选项文本
     
     # Create a new survey response
     survey_response = SurveyResponse(survey_id=survey_id)
@@ -431,11 +436,21 @@ def submit_survey():
                 for option_id in response:
                     try:
                         opt_id = int(option_id)
-                        question_response = QuestionResponse(
-                            survey_response_id=survey_response.id,
-                            question_id=q_id,
-                            option_id=opt_id
-                        )
+                        # 检查是否是"其他"选项并包含文本
+                        other_text_key = f"{q_id}-{opt_id}"
+                        if other_text_key in other_texts and other_texts[other_text_key]:
+                            question_response = QuestionResponse(
+                                survey_response_id=survey_response.id,
+                                question_id=q_id,
+                                option_id=opt_id,
+                                text_response=other_texts[other_text_key]  # 保存其他选项文本
+                            )
+                        else:
+                            question_response = QuestionResponse(
+                                survey_response_id=survey_response.id,
+                                question_id=q_id,
+                                option_id=opt_id
+                            )
                         db.session.add(question_response)
                     except ValueError:
                         continue
@@ -443,11 +458,20 @@ def submit_survey():
             else:  # Single choice
                 try:
                     option_id = int(response)
-                    question_response = QuestionResponse(
-                        survey_response_id=survey_response.id,
-                        question_id=q_id,
-                        option_id=option_id
-                    )
+                    # 检查是否是"其他"选项并包含文本
+                    if option_id in other_texts and other_texts[option_id]:
+                        question_response = QuestionResponse(
+                            survey_response_id=survey_response.id,
+                            question_id=q_id,
+                            option_id=option_id,
+                            text_response=other_texts[option_id]  # 保存其他选项文本
+                        )
+                    else:
+                        question_response = QuestionResponse(
+                            survey_response_id=survey_response.id,
+                            question_id=q_id,
+                            option_id=option_id
+                        )
                 except ValueError:
                     continue
         
@@ -464,11 +488,21 @@ def submit_survey():
         for option_id in selected_options:
             try:
                 opt_id = int(option_id)
-                question_response = QuestionResponse(
-                    survey_response_id=survey_response.id,
-                    question_id=q_id,
-                    option_id=opt_id
-                )
+                # 检查是否是"其他"选项并包含文本
+                other_text_key = f"{q_id}-{opt_id}"
+                if other_text_key in other_texts and other_texts[other_text_key]:
+                    question_response = QuestionResponse(
+                        survey_response_id=survey_response.id,
+                        question_id=q_id,
+                        option_id=opt_id,
+                        text_response=other_texts[other_text_key]  # 保存其他选项文本
+                    )
+                else:
+                    question_response = QuestionResponse(
+                        survey_response_id=survey_response.id,
+                        question_id=q_id,
+                        option_id=opt_id
+                    )
                 db.session.add(question_response)
             except ValueError:
                 continue

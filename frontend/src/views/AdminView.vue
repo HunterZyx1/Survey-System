@@ -180,6 +180,14 @@
                         >
                           添加选项
                         </el-button>
+                        <el-button 
+                          type="success" 
+                          icon="CirclePlus" 
+                          @click="addOtherOption(index)"
+                          style="margin-left: 10px;"
+                        >
+                          添加"其他"选项
+                        </el-button>
                       </div>
                     </el-card>
                   </div>
@@ -369,6 +377,14 @@
                           @click="addEditOption(index)"
                         >
                           添加选项
+                        </el-button>
+                        <el-button 
+                          type="success" 
+                          icon="CirclePlus" 
+                          @click="addEditOtherOption(index)"
+                          style="margin-left: 10px;"
+                        >
+                          添加"其他"选项
                         </el-button>
                       </div>
                     </el-card>
@@ -666,6 +682,10 @@ const addOption = (questionIndex: number) => {
   surveyForm.questions[questionIndex].options.push({ text: '' })
 }
 
+const addOtherOption = (questionIndex: number) => {
+  surveyForm.questions[questionIndex].options.push({ text: '其他' })
+}
+
 const removeOption = (questionIndex: number, optionIndex: number) => {
   surveyForm.questions[questionIndex].options.splice(optionIndex, 1)
 }
@@ -849,6 +869,10 @@ const removeEditQuestion = (index: number) => {
 
 const addEditOption = (questionIndex: number) => {
   editSurveyForm.questions[questionIndex].options.push({ text: '' })
+}
+
+const addEditOtherOption = (questionIndex: number) => {
+  editSurveyForm.questions[questionIndex].options.push({ text: '其他' })
 }
 
 const removeEditOption = (questionIndex: number, optionIndex: number) => {

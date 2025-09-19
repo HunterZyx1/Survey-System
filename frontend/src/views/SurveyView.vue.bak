@@ -90,8 +90,6 @@
                     maxlength="100"
                     show-word-limit
                     :style="{ width: calculateInputWidth(otherTexts[question.id] || '') }"
-                    type="textarea"
-                    :rows="calculateRows(otherTexts[question.id] || '')"
                   />
                 </div>
               </el-radio-group>
@@ -102,31 +100,26 @@
                 v-model="selectedOptions[question.id]" 
                 class="options-group"
               >
-                <el-checkbox
+                <div
                   v-for="option in question.options"
                   :key="option.id"
-                  :value="option.id"
-                  border
-                  class="option-item"
+                  class="option-item-wrapper"
                 >
-                  {{ option.text }}
-                </el-checkbox>
-                <!-- 单独处理"其他"选项的文本输入框 -->
-                <div 
-                  v-for="option in question.options.filter(opt => opt.text === '其他')" 
-                  :key="'other-multi-' + option.id"
-                  v-show="selectedOptions[question.id].includes(option.id)"
-                  style="margin-top: 10px; width: 100%;"
-                >
+                  <el-checkbox
+                    :value="option.id"
+                    border
+                    class="option-item"
+                  >
+                    {{ option.text }}
+                  </el-checkbox>
                   <el-input
+                    v-if="option.text === '其他' && selectedOptions[question.id].includes(option.id)"
                     v-model="otherTexts[`${question.id}-${option.id}`]"
                     placeholder="请输入具体内容"
                     size="small"
                     maxlength="100"
                     show-word-limit
-                    :style="{ width: calculateInputWidth(otherTexts[`${question.id}-${option.id}`] || '') }"
-                    type="textarea"
-                    :rows="calculateRows(otherTexts[`${question.id}-${option.id}`] || '')"
+                    :style="{ width: calculateInputWidth(otherTexts[`${question.id}-${option.id}`] || ''), marginTop: '10px' }"
                   />
                 </div>
               </el-checkbox-group>
@@ -241,19 +234,26 @@ const fetchPublishedSurveys = async () => {
   }
 }
 
-const selectSurvey = (survey: Survey) => {
-  currentSurvey.value = survey
-  // 初始化响应数据
-  responses.value = {}
-  selectedOptions.value = {}
-  otherTexts.value = {}
+// 计算输入框宽度的函数
+const calculateInputWidth = (text: string) => {
+  // 每行最多20个字符
+  const maxCharsPerLine = 20
+  // 计算需要的行数
+  const lines = Math.max(1, Math.ceil(text.length / maxCharsPerLine))
   
-  // 为多选题初始化selectedOptions
-  survey.questions.forEach(question => {
-    if (question.type === 2) {
-      selectedOptions.value[question.id] = []
-    }
-  })
+  // 每行宽度为20个字符的宽度，最小200px
+  const widthPerLine = 200
+  const minWidth = 200
+  
+  // 根据行数计算宽度
+  if (lines === 1) {
+    // 单行时根据字符数调整宽度，但不超过400px
+    const calculatedWidth = Math.max(minWidth, Math.min(text.length * 10 + 50, 400))
+    return `${calculatedWidth}px`
+  } else {
+    // 多行时使用固定宽度400px
+    return '400px'
+  }
 }
 
 const submitSurvey = async () => {
@@ -329,33 +329,6 @@ const submitSurvey = async () => {
   } finally {
     submitting.value = false
   }
-}
-
-// 计算输入框宽度的函数
-const calculateInputWidth = (text: string) => {
-  // 每行最多20个字符
-  const maxCharsPerLine = 20
-  // 计算需要的行数
-  const lines = Math.max(1, Math.ceil(text.length / maxCharsPerLine))
-  
-  // 根据行数计算宽度
-  if (lines === 1) {
-    // 单行时根据字符数调整宽度，但不超过400px
-    const calculatedWidth = Math.max(200, Math.min(text.length * 10 + 50, 400))
-    return `${calculatedWidth}px`
-  } else {
-    // 多行时使用固定宽度400px
-    return '400px'
-  }
-}
-
-// 计算文本框行数的函数
-const calculateRows = (text: string) => {
-  // 每行最多20个字符
-  const maxCharsPerLine = 20
-  // 计算需要的行数，最少1行，最多5行
-  const lines = Math.max(1, Math.min(Math.ceil(text.length / maxCharsPerLine), 5))
-  return lines
 }
 </script>
 
