@@ -2,13 +2,15 @@ from flask import jsonify, request
 from app.api import api_bp
 from app.extensions import db
 from app.api.models import User, Survey, Question, Option, SurveyResponse, QuestionResponse
-import jwt
 import datetime
 from functools import wraps
 import os
 
 # 密钥用于JWT token签名
 SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here'
+
+# 直接使用jwt模块的函数
+import jwt
 
 def token_required(f):
     @wraps(f)
